@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatecheck — is your repo ready for coding agents?</title>
+<meta name="description" content="Gatecheck scans your repo and scores how ready it is for Claude Code, Codex, Cursor and any coding agent. 300 public repos scanned: 39% of what their context files promise doesn't exist.">
+<style>
+:root{
+  --bg:#07080a; --panel:#0e1116; --line:#1b2028; --ink:#e8ebf0; --dim:#8b93a3; --dimmer:#5c6474;
+  --acc:#2ee6a8; --acc2:#6aa6ff; --warn:#ffc14d; --bad:#ff6b6b;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background-image:
+    radial-gradient(1100px 600px at 8% -12%,rgba(106,166,255,.13),transparent 62%),
+    radial-gradient(900px 520px at 96% -6%,rgba(46,230,168,.10),transparent 60%);
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+a{color:var(--acc2);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#141922;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#c9d3e3}
+
+header{border-bottom:1px solid var(--line);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20;background:rgba(7,8,10,.78)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:650;letter-spacing:-.01em;font-size:16px;color:var(--ink)}
+.mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(140deg,var(--acc),var(--acc2));position:relative}
+.mark:after{content:"";position:absolute;inset:5px;border-radius:2px;background:#07080a}
+.nav-links{display:flex;gap:22px;font-size:14px;color:var(--dim);align-items:center}
+.nav-links a{color:var(--dim)}
+.nav-links a:hover{color:var(--ink);text-decoration:none}
+
+.hero{padding:82px 0 34px}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+  border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:#0b0e13}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+h1{font-size:clamp(34px,5.4vw,62px);line-height:1.03;letter-spacing:-.035em;margin:22px 0 0;font-weight:760}
+h1 em{font-style:normal;color:var(--bad);position:relative}
+.lede{font-size:clamp(17px,2.1vw,20.5px);color:var(--dim);max-width:730px;margin:22px 0 0}
+.lede b{color:var(--ink);font-weight:600}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin:34px 0 0}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid transparent}
+.btn-p{background:linear-gradient(135deg,var(--acc),#19c48d);color:#04140f;box-shadow:0 8px 30px -10px rgba(46,230,168,.55)}
+.btn-p:hover{text-decoration:none;filter:brightness(1.07)}
+.btn-s{background:#11161e;border-color:var(--line);color:var(--ink)}
+.btn-s:hover{text-decoration:none;border-color:#2b3543}
+.hint{font-size:13px;color:var(--dimmer);margin-top:12px}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:58px 0 0}
+.strip div{background:#0b0e13;padding:22px 20px}
+.strip .n{font-size:30px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.strip .n.bad{color:var(--bad)} .strip .n.warn{color:var(--warn)} .strip .n.good{color:var(--acc)}
+.strip .l{font-size:12.5px;color:var(--dimmer);margin-top:3px;line-height:1.35}
+
+section{padding:76px 0}
+h2{font-size:clamp(24px,3.2vw,34px);letter-spacing:-.025em;margin:0 0 12px;font-weight:700}
+.sub{color:var(--dim);max-width:680px;margin:0 0 34px}
+
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card h3{font-size:15.5px;margin:0 0 8px;font-weight:640;letter-spacing:-.01em}
+.card p{margin:0;color:var(--dim);font-size:14px}
+.card .tag{font:11px ui-monospace,monospace;color:var(--dimmer);display:block;margin-bottom:10px;letter-spacing:.06em}
+
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{text-align:left;color:var(--dimmer);font-weight:500;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:0 12px 12px 0}
+td{padding:14px 12px 14px 0;border-top:1px solid var(--line);vertical-align:top;color:var(--dim)}
+td b,td strong{color:var(--ink);font-weight:600}
+.pts{font-variant-numeric:tabular-nums;color:var(--dimmer);white-space:nowrap;width:60px}
+
+.ex{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ex a{display:block;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px;color:var(--ink)}
+.ex a:hover{border-color:#2c3746;text-decoration:none;transform:translateY(-1px);transition:.15s}
+.ex .repo{font:13px ui-monospace,monospace;color:var(--dim);margin-bottom:14px;word-break:break-all}
+.ex .sc{font-size:34px;font-weight:750;letter-spacing:-.03em;line-height:1}
+.ex .sc small{font-size:14px;color:var(--dimmer);font-weight:500}
+.chip{display:inline-block;font-size:11px;font-weight:650;padding:3px 9px;border-radius:999px;margin-top:8px;letter-spacing:.04em}
+.cA{background:#0d241d;color:var(--acc);border:1px solid #1d5c47}
+.cB{background:#0d2029;color:#9ad8ff;border:1px solid #1d4a5c}
+.cF{background:#2a1010;color:var(--bad);border:1px solid #5c2020}
+
+.price{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch}
+.plan{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:24px 20px;display:flex;flex-direction:column}
+.plan.hi{border-color:#245a45;background:linear-gradient(180deg,#0d1a16,#0c1210);box-shadow:0 0 0 1px rgba(46,230,168,.12),0 18px 50px -30px rgba(46,230,168,.5)}
+.plan .name{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dimmer)}
+.plan .amt{font-size:36px;font-weight:750;letter-spacing:-.03em;margin:12px 0 2px}
+.plan .amt span{font-size:14px;color:var(--dimmer);font-weight:500;letter-spacing:0}
+.plan ul{list-style:none;padding:0;margin:18px 0 0;font-size:13.5px;color:var(--dim);flex:1}
+.plan li{padding:7px 0 7px 20px;position:relative;border-top:1px solid #141922}
+.plan li:before{content:"";position:absolute;left:2px;top:14px;width:8px;height:8px;border-radius:2px;background:#22303f}
+.plan.hi li:before{background:var(--acc)}
+.plan .go{display:block;text-align:center;margin-top:18px;padding:11px;border-radius:9px;background:#141b24;border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:14px}
+.plan.hi .go{background:var(--acc);color:#04140f;border-color:transparent}
+.plan .go:hover{text-decoration:none;filter:brightness(1.08)}
+
+pre{background:#0a0d12;border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto;font:13px/1.65 ui-monospace,monospace;color:#c9d3e3;margin:0}
+pre .cm{color:#5c6474}
+.faq{max-width:780px}
+details{border-top:1px solid var(--line);padding:16px 0}
+details summary{cursor:pointer;font-weight:600;color:var(--ink);list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary:before{content:"+ ";color:var(--dimmer)}
+details[open] summary:before{content:"− "}
+details p{color:var(--dim);margin:10px 0 0;font-size:14.5px}
+
+footer{border-top:1px solid var(--line);padding:36px 0 60px;color:var(--dimmer);font-size:13px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(max-width:860px){
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .grid3,.ex,.price{grid-template-columns:1fr}
+  .nav-links{display:none}
+  section{padding:56px 0}
+}
+</style>
+</head>
+<body>
+
+<header><div class="wrap nav">
+  <div class="brand"><span class="mark"></span> Gatecheck</div>
+  <nav class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#data">The data</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#start">Install</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow"><span class="pulse"></span> 300 public repos scanned · October 2026</span>
+    <h1>Your <code>AGENTS.md</code> is<br><em>lying</em> to your agent.</h1>
+    <p class="lede">Gatecheck scores how ready a repo actually is for Claude Code, Codex, Cursor or any coding agent —
+      and checks that what your context file <b>claims</b> still <b>exists</b>. Of 1,859 commands and paths promised
+      across 300 repos, <b>544 point at nothing</b>.</p>
+    <div class="cta">
+      <a class="btn btn-p" href="reports/demo-B.html">See a real report</a>
+      <a class="btn btn-s" href="https://github.com/Edmarkavs/gatecheck">Run it on your repo</a>
+    </div>
+    <p class="hint">Free and open source. <code>python scanner/scan.py --local=.</code> runs offline in ~10 seconds — no signup, no API key, no code executed.</p>
+  </div>
+
+  <div class="strip">
+    <div><div class="n bad">29%</div><div class="l">of claims in context files point at files or scripts that don't exist</div></div>
+    <div><div class="n warn">45%</div><div class="l">of repos ship no AGENTS.md / CLAUDE.md at all</div></div>
+    <div><div class="n">53%</div><div class="l">score D or F on readiness</div></div>
+    <div><div class="n good">300</div><div class="l">repos scanned, 8 signals, zero LLM calls</div></div>
+  </div>
+
+</div>
+
+<section id="how"><div class="wrap">
+  <h2>Nine signals. Deterministic. No prompt magic.</h2>
+  <p class="sub">Gatecheck never runs your code and never calls a model. It reads the tree, the context file and the skills,
+    then verifies the promises. Same repo in, same score out — so you can gate CI on it.</p>
+  <table>
+    <tr><th>Signal</th><th>Points</th><th>What it checks</th></tr>
+    <tr><td><b>Context tells the truth</b><div style="font-size:13px;color:var(--dimmer)">the only signal nobody else has</div></td><td class="pts">20</td>
+      <td>Extracts every command (<code>npm test</code>, <code>make build</code>, <code>pytest</code>) and every path your AGENTS.md mentions, then checks it exists in the repo.</td></tr>
+    <tr><td><b>Context file present</b></td><td class="pts">15</td><td>AGENTS.md / CLAUDE.md / GEMINI.md / .cursorrules at the root.</td></tr>
+    <tr><td><b>Context budget</b></td><td class="pts">12</td><td>Under 8k characters is read; over 15k gets truncated or ignored by the model.</td></tr>
+    <tr><td><b>Skill frontmatter</b></td><td class="pts">12</td><td>Every <code>SKILL.md</code> has a valid <code>name</code> and <code>description</code>.</td></tr>
+    <tr><td><b>Skill triggers</b></td><td class="pts">10</td><td>Descriptions say <em>when</em> to use it. "Helps with code" is not a trigger.</td></tr>
+    <tr><td><b>Skill references</b></td><td class="pts">8</td><td>No links to <code>references/foo.md</code> that were deleted three commits ago.</td></tr>
+    <tr><td><b>Context freshness</b></td><td class="pts">8</td><td>Days since the context file was last edited against a 90-day cliff.</td></tr>
+    <tr><td><b>Execution guardrails</b></td><td class="pts">8</td><td><code>curl | bash</code>, <code>rm -rf /</code>, <code>allowed-tools: *</code>.</td></tr>
+    <tr><td><b>Repo hygiene</b></td><td class="pts">7</td><td>CI, lockfile, tests directory, leaked credentials in tracked docs.</td></tr>
+  </table>
+</div></section>
+
+<section id="data"><div class="wrap">
+  <h2>What 300 repos look like</h2>
+  <p class="sub">Collected by searching GitHub for repos that actually ship <code>SKILL.md</code> and <code>AGENTS.md</code> files —
+    the people who already bought into agent workflows. The full dataset is public: <a href="reports/corpus.csv">corpus.csv</a> ·
+    <a href="reports/stats.json">stats.json</a>.</p>
+  <div class="ex">
+    <a href="reports/demo-A.html">
+      <div class="repo">SawyerHood/dev-browser</div>
+      <div class="sc">95<small>/100</small></div><br><span class="chip cA">GRADE A</span>
+    </a>
+    <a href="reports/demo-B.html">
+      <div class="repo">coreyhaines31/marketingskills · 56,733 ★</div>
+      <div class="sc">79<small>/100</small></div><br><span class="chip cB">GRADE B</span>
+    </a>
+    <a href="reports/demo-F.html">
+      <div class="repo">VoltAgent/awesome-agent-skills · 36,418 ★</div>
+      <div class="sc">14<small>/100</small></div><br><span class="chip cF">GRADE F</span>
+    </a>
+  </div>
+  <p class="sub" style="margin-top:26px;font-size:14.5px">Stars and readiness are unrelated. The most-starred skills
+    collection in the sample has no context file, no CI and no lockfile — an agent cloning it starts from zero.</p>
+</div></section>
+
+<section id="pricing"><div class="wrap">
+  <h2>Pricing</h2>
+  <p class="sub">Priced for the person who owns the repo, not for a procurement department. Cancel with one click.</p>
+  <div class="price">
+    <div class="plan">
+      <div class="name">Free</div>
+      <div class="amt">$0</div>
+      <ul><li>Unlimited public repo scans</li><li>Full 9-signal report</li><li>Shareable report link</li><li>No signup</li></ul>
+      <a class="go" href="https://github.com/Edmarkavs/gatecheck">Run locally</a>
+    </div>
+    <div class="plan">
+      <div class="name">Solo</div>
+      <div class="amt">$29<span>/mo</span></div>
+      <ul><li>3 private repos</li><li>Weekly drift alerts</li><li>Badge for your README</li><li>Email support</li></ul>
+      <a class="go" href="#start">Start</a>
+    </div>
+    <div class="plan hi">
+      <div class="name">Team</div>
+      <div class="amt">$99<span>/mo</span></div>
+      <ul><li>10 repos, unlimited seats</li><li>PR comment: blocks a merge that breaks agent context</li><li>Score history + trends</li><li>PDF report for your CTO</li></ul>
+      <a class="go" href="#start">Start</a>
+    </div>
+    <div class="plan">
+      <div class="name">Agency</div>
+      <div class="amt">$249<span>/mo</span></div>
+      <ul><li>Unlimited client repos</li><li>White-label PDF with your logo</li><li>Bulk scans + portfolio dashboard</li><li>Priority support</li></ul>
+      <a class="go" href="#start">Start</a>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:16px">One-off <b style="color:var(--ink)">$149 Fix pack</b>: we open a PR that writes your
+    AGENTS.md, fixes dead references and shrinks the context to budget. No subscription.</p>
+</div></section>
+
+<section id="start"><div class="wrap">
+  <h2>Install it in CI</h2>
+  <p class="sub">The action runs in your workflow, comments the score on the pull request and fails the check when the score drops.</p>
+<pre><span class="cm"># .github/workflows/gatecheck.yml</span>
+name: gatecheck
+on: [pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Edmarkavs/gatecheck@main
+        with:
+          fail-under: 70</pre>
+  <p class="hint">Public beta: the action is free while the paid tiers are being wired up.
+    To get on the paid list early, open an issue on the repo — no email required.</p>
+</div></section>
+
+<section><div class="wrap faq">
+  <h2>Questions</h2>
+  <details><summary>Does it run my code?</summary><p>No. Gatecheck only reads files: the tree, the context file, the SKILL.md headers. No <code>npm install</code>, no tests, no model calls. That's why it takes seconds and why you can safely point it at a private repo.</p></details>
+  <details><summary>Which agents does this apply to?</summary><p>Any agent that reads a repo — Claude Code, Codex, Cursor, Copilot Workspace, Pi, OpenCode. The context-file convention differs slightly, but the failure modes (dead paths, stale stack, oversized context) are identical.</p></details>
+  <details><summary>Why does a high-star repo score F?</summary><p>Because stars measure attention, not setup. A collection of 800 skills with no context file, no CI and no lockfile gives an agent nothing to work from — it will guess your test command and get it wrong.</p></details>
+  <details><summary>Is the score gameable?</summary><p>Partly, and that's fine. The truth signal can be farmed by deleting every claim from your AGENTS.md — which is also the honest fix for a file full of lies. You get points for being small and correct, not for sounding thorough.</p></details>
+  <details><summary>How do I get the paid tier?</summary><p>Right now it's a waitlist. Run the scan on one of your repos, and if the report is useful reply to the pinned issue in the repo. Private repos, PR gating and drift alerts are being built against the first ten paying teams.</p></details>
+</div></section>
+
+<div class="wrap"><footer>
+  <span>Gatecheck · deterministic repo readiness for coding agents</span>
+  <span>Data: 300 repos, 27 Oct 2026 · <a href="reports/corpus.csv">corpus</a> · <a href="https://github.com/Edmarkavs/gatecheck">source</a></span>
+</footer></div>
+
+</body>
+</html>

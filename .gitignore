@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.cache/
+out/
+site/
+.venv/
+venv/
+*.log
+PLAN.md
+repos.txt
+repos_raw.txt
+repos5.txt
+site/
+.github/workflows/
